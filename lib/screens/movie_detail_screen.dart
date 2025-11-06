@@ -8,8 +8,13 @@ import '../services/omdb_service.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final int movieId;
+  final String? movieTitle; // ← NUEVO
 
-  const MovieDetailScreen({Key? key, required this.movieId}) : super(key: key);
+  const MovieDetailScreen({
+    Key? key,
+    required this.movieId,
+    this.movieTitle, // ← NUEVO
+  }) : super(key: key);
 
   @override
   State<MovieDetailScreen> createState() => _MovieDetailScreenState();
@@ -30,9 +35,22 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   Future<void> _loadMovieDetails() async {
     try {
-      final detail = await _tmdbService.getMovieDetails(widget.movieId);
-      final credits = await _tmdbService.getMovieCredits(widget.movieId);
-      final videos = await _tmdbService.getMovieVideos(widget.movieId);
+      // ← CAMBIO: Usar título si está disponible
+      final detail = await _tmdbService.getMovieDetails(
+        widget.movieId,
+        title: widget.movieTitle,
+      );
+
+      final credits = await _tmdbService.getMovieCredits(
+        widget.movieId,
+        title: widget.movieTitle ?? detail.title,
+      );
+
+      // ← CAMBIO: Pasar título para buscar trailers en YouTube
+      final videos = await _tmdbService.getMovieVideos(
+        widget.movieId,
+        title: widget.movieTitle ?? detail.title,
+      );
 
       setState(() {
         _movieDetail = detail;
@@ -99,7 +117,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.white.withOpacity(0.8),
+                          Colors.white.withValues(alpha: 0.8),
                           Colors.white,
                         ],
                       ),
@@ -127,7 +145,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -418,7 +436,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -449,7 +467,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.7),
+                      Colors.black.withValues(alpha: 0.7),
                     ],
                   ),
                 ),
@@ -457,7 +475,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               Center(
                 child: Icon(
                   Icons.play_circle_filled,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   size: 70,
                 ),
               ),

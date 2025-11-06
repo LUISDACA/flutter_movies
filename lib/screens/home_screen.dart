@@ -19,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   int _selectedDateIndex = 1;
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   // Generar fechas para el selector
   List<Map<String, String>> _generateDates() {
@@ -71,7 +72,10 @@ class _HomeScreenState extends State<HomeScreen> {
       List<Video> allTrailers = [];
       for (var i = 0; i < (movies.length > 3 ? 3 : movies.length); i++) {
         try {
-          final videos = await _tmdbService.getMovieVideos(movies[i].id);
+          final videos = await _tmdbService.getMovieVideos(
+            movies[i].id,
+            title: movies[i].title,
+          );
           allTrailers.addAll(videos.trailers);
         } catch (e) {
           print('Error loading trailer: $e');
@@ -100,11 +104,13 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : CustomScrollView(
-                slivers: [
-                  // Search bar
-                  SliverToBoxAdapter(
-                    child: Padding(
+            : SingleChildScrollView(
+                controller: _scrollController,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Search bar
+                    Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: TextField(
                         controller: _searchController,
@@ -129,11 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                     ),
-                  ),
 
-                  // Title
-                  SliverToBoxAdapter(
-                    child: Padding(
+                    // Title
+                    Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,11 +160,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
-                  ),
 
-                  // Date selector
-                  SliverToBoxAdapter(
-                    child: Container(
+                    // Date selector
+                    Container(
                       height: 80,
                       margin: const EdgeInsets.symmetric(vertical: 20),
                       child: ListView.builder(
@@ -214,32 +216,32 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                     ),
-                  ),
 
-                  // Movies grid
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.65,
-                        crossAxisSpacing: 15,
-                        mainAxisSpacing: 15,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
+                    // Movies grid - TODAS LAS PELÍCULAS CON SCROLL
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.65,
+                          crossAxisSpacing: 15,
+                          mainAxisSpacing: 15,
+                        ),
+                        itemCount: _movies.length, // ← TODAS las películas
+                        itemBuilder: (context, index) {
                           final movie = _movies[index];
                           return _buildMovieCard(movie);
                         },
-                        childCount: _movies.length > 6 ? 6 : _movies.length,
                       ),
                     ),
-                  ),
 
-                  // Trailers section
-                  SliverToBoxAdapter(
-                    child: Padding(
+                    const SizedBox(height: 20),
+
+                    // Trailers section
+                    Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Text(
                         'Trailers',
@@ -250,11 +252,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                  ),
 
-                  // Trailers list
-                  SliverToBoxAdapter(
-                    child: Container(
+                    // Trailers list
+                    Container(
                       height: 120,
                       margin: const EdgeInsets.only(bottom: 20),
                       child: ListView.builder(
@@ -267,8 +267,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
       ),
     );
@@ -280,7 +280,10 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => MovieDetailScreen(movieId: movie.id),
+            builder: (context) => MovieDetailScreen(
+              movieId: movie.id,
+              movieTitle: movie.title,
+            ),
           ),
         );
       },
@@ -366,6 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 }

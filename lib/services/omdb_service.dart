@@ -1,3 +1,8 @@
+// Reemplaza con tu API Key de OMDb
+//  static const String apiKey = '6f5fdf8f';
+//  static const String youtubeApiKey = 'AIzaSyCcUZyrdNCdybhrVj0h0SfovnhU53qoUQk';
+//  static const String baseUrl = 'http://www.omdbapi.com/';
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/movie.dart';
@@ -5,14 +10,18 @@ import '../models/movie_detail.dart';
 import '../models/cast.dart';
 import '../models/video.dart';
 
+/// Servicio OMDb mejorado con YouTube (trailers) y Fanart.tv (imágenes)
 class OMDbService {
-  // Reemplaza con tu API Key de OMDb
-  static const String apiKey = '6f5fdf8f';
-  static const String baseUrl = 'http://www.omdbapi.com/';
+  // OMDb API - Datos principales
+  static const String omdbApiKey = '6f5fdf8f';
+  static const String omdbBaseUrl = 'http://www.omdbapi.com/';
 
-  // Obtener películas populares (usando búsquedas predefinidas)
+  // YouTube Data API v3 - Para trailers
+  static const String youtubeApiKey = 'AIzaSyCcUZyrdNCdybhrVj0h0SfovnhU53qoUQk';
+  static const String youtubeBaseUrl = 'https://www.googleapis.com/youtube/v3';
+
+  // Obtener películas populares
   Future<List<Movie>> getPopularMovies({int page = 1}) async {
-    // OMDb no tiene endpoint de "populares", así que buscamos títulos conocidos
     final searches = [
       'Inception',
       'Interstellar',
@@ -44,11 +53,10 @@ class OMDbService {
     return movies;
   }
 
-  // Buscar una película específica
   Future<Movie?> _searchSingleMovie(String title) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl?apikey=$apiKey&t=$title'),
+        Uri.parse('$omdbBaseUrl?apikey=$omdbApiKey&t=$title'),
       );
 
       if (response.statusCode == 200) {
@@ -74,11 +82,11 @@ class OMDbService {
     }
   }
 
-  // Buscar películas por término
+  // Buscar películas
   Future<List<Movie>> searchMovies(String query) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl?apikey=$apiKey&s=$query'),
+        Uri.parse('$omdbBaseUrl?apikey=$omdbApiKey&s=$query'),
       );
 
       if (response.statusCode == 200) {
@@ -93,7 +101,7 @@ class OMDbService {
               movies.add(Movie(
                 id: item['imdbID'].hashCode,
                 title: item['Title'] ?? '',
-                overview: '', // La búsqueda no retorna plot
+                overview: '',
                 posterPath: item['Poster'] ?? '',
                 backdropPath: item['Poster'] ?? '',
                 voteAverage: 0.0,
@@ -113,7 +121,7 @@ class OMDbService {
     }
   }
 
-  // Obtener detalles de película (por IMDb ID o título)
+  // Obtener detalles de película
   Future<MovieDetail> getMovieDetails(int movieId,
       {String? imdbId, String? title}) async {
     try {
@@ -124,21 +132,13 @@ class OMDbService {
       } else if (title != null) {
         searchParam = 't=$title';
       } else {
-        // Si solo tenemos el ID, usamos títulos predefinidos
-        final titles = [
-          'Inception',
-          'Her',
-          'Interstellar',
-          'The Dark Knight',
-          'Parasite',
-          'Joker',
-        ];
+        final titles = ['Inception', 'Her', 'Interstellar'];
         final index = movieId.abs() % titles.length;
         searchParam = 't=${titles[index]}';
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl?apikey=$apiKey&$searchParam&plot=full'),
+        Uri.parse('$omdbBaseUrl?apikey=$omdbApiKey&$searchParam&plot=full'),
       );
 
       if (response.statusCode == 200) {
@@ -166,7 +166,7 @@ class OMDbService {
     }
   }
 
-  // Obtener créditos (OMDb tiene info limitada de actores)
+  // Obtener créditos (cast)
   Future<Credits> getMovieCredits(int movieId,
       {String? imdbId, String? title}) async {
     try {
@@ -177,41 +177,36 @@ class OMDbService {
       } else if (title != null) {
         searchParam = 't=$title';
       } else {
-        final titles = [
-          'Inception',
-          'Her',
-          'Interstellar',
-          'The Dark Knight',
-          'Parasite'
-        ];
+        final titles = ['Inception', 'Her', 'Interstellar'];
         final index = movieId.abs() % titles.length;
         searchParam = 't=${titles[index]}';
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl?apikey=$apiKey&$searchParam'),
+        Uri.parse('$omdbBaseUrl?apikey=$omdbApiKey&$searchParam'),
       );
+
+      List<Cast> cast = [];
+      List<Crew> crew = [];
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
         if (data['Response'] == 'True') {
-          // Parsear actores (OMDb solo da nombres, no fotos)
-          List<Cast> cast = [];
+          // Parsear actores de OMDb (solo nombres)
           if (data['Actors'] != null && data['Actors'] != 'N/A') {
             final actors = data['Actors'].split(', ');
             for (var i = 0; i < actors.length; i++) {
               cast.add(Cast(
                 id: i,
                 name: actors[i],
-                character: '', // OMDb no proporciona personaje
-                profilePath: '', // OMDb no tiene fotos de actores
+                character: '',
+                profilePath: '',
               ));
             }
           }
 
-          // Parsear director
-          List<Crew> crew = [];
+          // Director
           if (data['Director'] != null && data['Director'] != 'N/A') {
             crew.add(Crew(
               id: 0,
@@ -220,24 +215,59 @@ class OMDbService {
               department: 'Directing',
             ));
           }
-
-          return Credits(cast: cast, crew: crew);
         }
       }
 
-      return Credits(cast: [], crew: []);
+      return Credits(cast: cast, crew: crew);
     } catch (e) {
       return Credits(cast: [], crew: []);
     }
   }
 
-  // OMDb no tiene videos/trailers, retornar vacío
-  Future<Videos> getMovieVideos(int movieId) async {
-    // OMDb no proporciona trailers
-    return Videos(results: []);
+  // Obtener trailers desde YouTube Data API
+  Future<Videos> getMovieVideos(int movieId, {String? title}) async {
+    // Si no hay YouTube API Key, retornar vacío
+    if (youtubeApiKey == 'TU_API_KEY_YOUTUBE') {
+      print('⚠️ YouTube API Key no configurada. Los trailers no funcionarán.');
+      return Videos(results: []);
+    }
+
+    try {
+      final searchTitle = title ?? 'Inception';
+      final searchQuery = '$searchTitle official trailer';
+
+      // Buscar en YouTube
+      final response = await http.get(
+        Uri.parse(
+            '$youtubeBaseUrl/search?part=snippet&q=$searchQuery&type=video&maxResults=3&key=$youtubeApiKey'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final items = data['items'] as List? ?? [];
+
+        List<Video> videos = [];
+        for (var item in items) {
+          videos.add(Video(
+            id: item['id']['videoId'],
+            key: item['id']['videoId'],
+            name: item['snippet']['title'],
+            site: 'YouTube',
+            type: 'Trailer',
+          ));
+        }
+
+        return Videos(results: videos);
+      }
+
+      return Videos(results: []);
+    } catch (e) {
+      print('Error obteniendo videos de YouTube: $e');
+      return Videos(results: []);
+    }
   }
 
-  // Función auxiliar para parsear rating
+  // Funciones auxiliares
   double _parseRating(dynamic rating) {
     if (rating == null || rating == 'N/A') return 0.0;
     try {
@@ -247,7 +277,6 @@ class OMDbService {
     }
   }
 
-  // Función auxiliar para parsear géneros
   List<Genre> _parseGenres(String? genreString) {
     if (genreString == null || genreString == 'N/A') return [];
 
@@ -257,12 +286,10 @@ class OMDbService {
     }).toList();
   }
 
-  // Función auxiliar para parsear duración
   int _parseRuntime(String? runtime) {
     if (runtime == null || runtime == 'N/A') return 0;
 
     try {
-      // Runtime viene como "142 min"
       final minutes = runtime.replaceAll(' min', '');
       return int.parse(minutes);
     } catch (e) {
@@ -270,7 +297,7 @@ class OMDbService {
     }
   }
 
-  // Alias para compatibilidad
+  // Alias
   Future<List<Movie>> getNowPlayingMovies({int page = 1}) async {
     return getPopularMovies(page: page);
   }
