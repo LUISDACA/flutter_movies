@@ -20,8 +20,11 @@ class Cast {
     );
   }
 
-  String get fullProfilePath =>
-      profilePath.isNotEmpty ? 'https://image.tmdb.org/t/p/w200$profilePath' : '';
+  String get fullProfilePath {
+    if (profilePath.isEmpty || profilePath == 'N/A') return '';
+    if (profilePath.startsWith('http')) return profilePath;
+    return 'https://image.tmdb.org/t/p/w200$profilePath';
+  }
 }
 
 class Crew {
@@ -55,8 +58,10 @@ class Credits {
 
   factory Credits.fromJson(Map<String, dynamic> json) {
     return Credits(
-      cast: (json['cast'] as List?)?.map((c) => Cast.fromJson(c)).toList() ?? [],
-      crew: (json['crew'] as List?)?.map((c) => Crew.fromJson(c)).toList() ?? [],
+      cast:
+          (json['cast'] as List?)?.map((c) => Cast.fromJson(c)).toList() ?? [],
+      crew:
+          (json['crew'] as List?)?.map((c) => Crew.fromJson(c)).toList() ?? [],
     );
   }
 
